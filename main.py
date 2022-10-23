@@ -3,6 +3,7 @@ import nextcord
 from nextcord.ext import commands
 import logging
 import sqlite3
+from typing import Optional
 
 
 #sqlite
@@ -36,13 +37,8 @@ async def on_ready():
     print(f'We have logged in as {bot.user}')
 
 @bot.command()
-async def add(ctx, left: int, right: int):
-    """Adds two numbers together."""
-    await ctx.send(left + right)
-
-@bot.command()
 async def ping(ctx):
-    await ctx.send("Pong ty kurwo")    
+    await ctx.send("Pong")    
 
 @bot.command()
 async def joined(ctx, member: nextcord.Member):
@@ -63,13 +59,25 @@ async def members(ctx):
     await ctx.send(names)
 
 @bot.command()
-async def addPerson(ctx, person: str):
-    cursor.execute(f"""
-    INSERT INTO lista_chamow VALUES
-        ('{person}', {int("0")})
-""")
-    connection.commit()
-    await ctx.send(f"Added {person} to the DB (mayyyyyyyyybe :D)")
+async def addPerson(ctx, person: Optional[nextcord.Member]):
+    userToDb = ""
+    if person is None:
+        userToDb = ctx.author.mention
+    else:
+        userToDb = person.mention
+
+    cursor.execute(f"""SELECT osoba from lista_chamow WHERE osoba='{userToDb}'""")
+    data = cursor.fetchall()
+    if(len(data) == 0):
+        cursor.execute(f"""
+        INSERT INTO lista_chamow VALUES
+            ('{userToDb}', {int("0")})
+        """)
+        connection.commit()
+        await ctx.send(f"Added {userToDb} to the DB (mayyyyyyyyybe :D)")
+    else:
+        await ctx.send(f"User {userToDb} is already in the DB")
+
 
 @bot.command()
 async def showTable(ctx):

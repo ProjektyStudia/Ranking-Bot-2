@@ -4,7 +4,7 @@ from nextcord.ext import commands
 import logging
 import sqlite3
 from typing import Optional
-
+from dotenv import load_dotenv
 
 #sqlite
 connection = sqlite3.connect("cham.db")
@@ -12,7 +12,12 @@ cursor = connection.cursor()
 
 
 #consts
-GUILD_ID = os.getenv('DISCORD_GUILD')
+if load_dotenv():
+    TOKEN = os.getenv('DISCORD_TOKEN')
+    GUILD_ID = os.getenv('DISCORD_GUILD')
+else:
+    print("No file .env found")
+
 
 #logger
 logger = logging.getLogger('nextcord')
@@ -59,22 +64,70 @@ async def members(ctx):
     await ctx.send(names)
 
 @bot.command()
-async def addPerson(ctx, person: Optional[nextcord.Member]):
+async def addPerson(ctx, *args):
+#args are optional, [0] - mention user, [1] - ranking name
+# async def addPerson(ctx, person: Optional[nextcord.Member], rankingName: Optional[str]):
+    rankingID = -1
     userToDb = ""
-    if person is None:
-        userToDb = ctx.author.mention
-    else:
-        userToDb = person.mention
+    rankingName = ""
+    match len(args):
+        case 2:
+            userToDb = args[0]
+            rankingName = args[1]
+        case 1:
+            userToDb = args[0]
+        case 0:
+            userToDb = ctx.author.mention
+        case _:
+            await ctx.send("Too many arguments.  Miau! (●'◡'●) \n Remember: ranking name has no whitespaces!")
+            return
 
-    cursor.execute(f"""SELECT osoba from lista_chamow WHERE osoba='{userToDb}'""")
+    #check if custom name or authorName is a mention
+    if(!(userToDb.startsWith("<@") && userToDb.endsWith(">"))):
+        return
+    #no RankingName in message
+    if rankingName == "":
+        cursor.execute(f"""SELECT RankingName, RankingID from Rankings WHERE GuildID='{ctx.guild.id}'""")
+        data = cursor.fetchall()
+
+        #found one default ranking
+        if(len(data) == 1):
+            rankingName = data[0][0]
+            rankingID = data[0][1]
+
+        #no ranking for guild
+        elif(len(data) == 0):
+            #create new ranking
+            cursor.execute(f"""INSERT INTO Rankings (RankingName, GuildID) VALUES ('{ctx.guild.name.replace(" ", "_")}','{ctx.guild.id}')""")
+            connection.commit()
+
+            rankingName = ctx.guild.name
+            cursor.execute(f"""SELECT RankingID from Rankings WHERE GuildID='{ctx.guild.id}'""")
+            data = cursor.fetchall()
+            rankingID = data[0][0]
+            await ctx.send(f"Created your first ranking with name of server: {ctx.guild.name}.  Miau! (●'◡'●)")
+
+        #too many ranking names, cannot pick cause no rankingName in message
+        else:
+            await ctx.send("In your server are several rankings, choose one and call me again! Miau! (●'◡'●)")
+            return
+    
+    #RankingName in message
+    else:
+        cursor.execute(f"""SELECT RankingID from Rankings WHERE GuildID='{ctx.guild.id}' AND RankingName='{rankingName}'""")
+        data = cursor.fetchall()
+        if(len(data) != 1):
+            await ctx.send("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
+            return 
+        else:
+            rankingID = data[0][0]
+
+    cursor.execute(f"""SELECT User from Points WHERE User='{userToDb}' AND RankingID='{rankingID}'""")
     data = cursor.fetchall()
     if(len(data) == 0):
-        cursor.execute(f"""
-        INSERT INTO lista_chamow VALUES
-            ('{userToDb}', {int("0")})
-        """)
+        cursor.execute(f"""INSERT INTO Points VALUES('{userToDb}', {rankingID} , {int("0")})""")
         connection.commit()
-        await ctx.send(f"Added {userToDb} to the DB (mayyyyyyyyybe :D)")
+        await ctx.send(f"Added {userToDb} to the {rankingName} ranking! You're welcome! Miau ＼(´ ε｀ )／")
     else:
         await ctx.send(f"User {userToDb} is already in the DB")
 
@@ -95,6 +148,6 @@ async def addPoint(ctx, person:str):
 
 
 
-bot.run('MTAzMDAxOTk1Nzk2NDE2MTA2Nw.G5fBCm.IpGo8olJI7RuRnTI7EfFE_qVbRwYdZdrBNr5hY')
+bot.run(TOKEN)
 
 connection.close()

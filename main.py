@@ -65,6 +65,7 @@ async def members(ctx):
 
 @bot.command()
 async def addPerson(ctx, *args):
+#args are optional, [0] - mention user, [1] - ranking name
 # async def addPerson(ctx, person: Optional[nextcord.Member], rankingName: Optional[str]):
     rankingID = -1
     userToDb = ""
@@ -81,6 +82,9 @@ async def addPerson(ctx, *args):
             await ctx.send("Too many arguments.  Miau! (●'◡'●) \n Remember: ranking name has no whitespaces!")
             return
 
+    #check if custom name or authorName is a mention
+    if(!(userToDb.startsWith("<@") && userToDb.endsWith(">"))):
+        return
     #no RankingName in message
     if rankingName == "":
         cursor.execute(f"""SELECT RankingName, RankingID from Rankings WHERE GuildID='{ctx.guild.id}'""")

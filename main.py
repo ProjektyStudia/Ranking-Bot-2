@@ -5,7 +5,7 @@ import logging
 import sqlite3
 from typing import Optional
 from dotenv import load_dotenv
-
+from prettytable import PrettyTable as pt
 #sqlite
 connection = sqlite3.connect("cham.db")
 cursor = connection.cursor()
@@ -83,7 +83,7 @@ async def addPerson(ctx, *args):
             return
 
     #check if custom name or authorName is a mention
-    if(!(userToDb.startsWith("<@") && userToDb.endsWith(">"))):
+    if (not (userToDb.startsWith("<@") and userToDb.endsWith(">"))):
         return
     #no RankingName in message
     if rankingName == "":
@@ -142,11 +142,28 @@ async def addPoint(ctx, person:str):
     cursor.execute(f"""UPDATE lista_chamow
     SET punkty = punkty + 1 
     WHERE osoba = '{person}'
-""")
+    """)
     connection.commit()
     await ctx.send(f"Added one point to {person}")  
 
+@bot.command()
+async def showRanking(ctx, rankingName:str):
+    cursor.execute(f"""SELECT RankingName from Rankings WHERE RankingName='{rankingName}'""")
+    data = cursor.fetchall()
+    if(len(data) != 1):
+        await ctx.send("Not found ranking with that name. Check typo error and try againe! Meow!")
+        return
 
+    cursor.execute(f"""SELECT p.User, p.Points from Points p INNER JOIN Rankings r ON r.RankingID = p.RankingID WHERE r.RankingName='{rankingName}'""")
+    data = cursor.fetchall()
+    tb = pt()
+    tb.title = rankingName
+    tb.field_names = ["User Name","Points"]
+    for row in data:
+        tb.add_row(row)
+    tb.sortby = "Points"
+    tb.reversesort = True
+    await ctx.send(f"```\n{tb}```")
 
 bot.run(TOKEN)
 

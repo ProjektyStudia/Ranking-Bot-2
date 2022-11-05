@@ -7,6 +7,7 @@ import logging
 import sqlite3
 from typing import Optional
 import discord
+from dotenv import load_dotenv
 
 client = Client()
 # sqlite
@@ -14,10 +15,12 @@ connection = sqlite3.connect("cham.db")
 cursor = connection.cursor()
 
 
-# consts
-
-TOKEN = 'MTAzMDAxOTk1Nzk2NDE2MTA2Nw.G5fBCm.IpGo8olJI7RuRnTI7EfFE_qVbRwYdZdrBNr5hY'
-GUILD_ID = 'Ranking Chamów'
+#consts
+if load_dotenv():
+    TOKEN = os.getenv('DISCORD_TOKEN')
+    GUILD_ID = os.getenv('DISCORD_GUILD')
+else:
+    print("No file .env found")
 
 
 # logger
@@ -45,17 +48,39 @@ bot = commands.Bot(command_prefix="$",
 
 messages = []
 
+def fetch_messages_from_db():
+    print("Started fetching data from db")
+    cursor.execute(f"""SELECT Message_id, Agreed, Rejected, NeedTotalVotes FROM Messages""")
+    data = cursor.fetchall()
+    for record in data:
+        messages.append(record[:-1])
+    print("Finished fetching")
+    
+def insert_message_to_db(message_id, needVotes):
+    cursor.execute(f"""INSERT INTO Messages (Message_id, Agreed, Rejected, NeedTotalVotes) VALUES('{message_id}', 0, 0, {needVotes});""")
+    connection.commit()
 
+def update_message_votes(message_id, vote_type, action):
+    if action == "Add":
+        cursor.execute(f"""UPDATE Messages SET {vote_type} = {vote_type} + 1""")
+    elif action == "Remove":
+        cursor.execute(f"""UPDATE Messages SET {vote_type} = {vote_type} - 1""")
+    else:
+        return
+    connection.commit()
+    
 # bot events
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
+    fetch_messages_from_db()
 
 
 @bot.event
 async def on_message(message):
     if (len(message.embeds) > 0):
-        if (message.embeds[0].title.startswith('(Nazwa Tabeli)') and message.author.id == 1030019957964161067):
+        
+        if (message.embeds[0].title.startswith('Voting Battle') and message.author.id == 1030019957964161067):
             messages.append(message.id)
 
     await bot.process_commands(message)
@@ -70,7 +95,7 @@ async def on_raw_reaction_add(payload):
             embed = message.embeds[0]
             embed.set_field_at(
                 1, name=embed.fields[1].name, value=int(embed.fields[1].value) - 1)
-            embed.set_footer(text="Zaakceptowano")
+            embed.set_footer(text="Approved")
             await message.edit(embed=embed)
             await message.clear_reactions()
 
@@ -80,7 +105,7 @@ async def on_raw_reaction_add(payload):
             embed = message.embeds[0]
             embed.set_field_at(
                 2, name=embed.fields[2].name, value=int(embed.fields[2].value) - 1)
-            embed.set_footer(text="Zaakceptowano")
+            embed.set_footer(text="Rejected")
             await message.edit(embed=embed)
             await message.clear_reactions()
 
@@ -198,22 +223,26 @@ async def showTable(ctx):
 
 
 @ bot.command()
-async def addPoint(ctx, person: str, description: str):
-    print("Add point")
-    cursor.execute(f"""UPDATE lista_chamow
-    SET punkty = punkty + 1
-    WHERE osoba = '{person}'
-""")
-    connection.commit()
+async def vote(ctx, person: str, description: str, points: int):
+    colorBasedOnPoints = 0x0
+    if(points == 0):
+        await ctx.send(f"Voting for 0 points, are u silly? Meow (ﾉ≧ڡ≦)")
+        return
+    elif(poits > 0):
+        colorBasedOnPoints = 0xc2525d
+    else:
+        colorBasedOnPoints = 0x52c25d
+
+    print("Started voting")
     embed = discord.Embed(
-        title="(Nazwa Tabeli), Bitwa o punkt!", color=0x01ffbf)
+        title="Voting Battle in (Nazwa Tabeli)", color=colorBasedOnPoints)
     embed.add_field(
-        name=f"Użytkownik {ctx.author} chce dodac punkta użytkownikowi {person}", value=f"{description}", inline=False)
-    embed.add_field(name="Daj reakcje 👍 jeśli się zgadzasz, pozostało:",
+        name=f"{ctx.author} want to vote {person} for {points} points because {description}", value=f"{description}", inline=False)
+    embed.add_field(name="Approve voting by reacting 👍, votes left:",
                     value=2, inline=True)
     embed.add_field(
-        name="Daj reakcje 👎 jeśli się nie zgadzasz, pozostało:", value=2, inline=True)
-    embed.set_footer(text="#Bot Rankingowy")
+        name="To reject react 👎, votes left:", value=2, inline=True)
+    embed.set_footer(text="#Rankuś ＼(´ ε｀ )／")
 
     await ctx.send(embed=embed)
 

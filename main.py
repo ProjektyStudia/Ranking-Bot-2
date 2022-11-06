@@ -21,7 +21,6 @@ cursor = connection.cursor()
 # consts
 if load_dotenv():
     TOKEN = os.getenv('TOKEN')
-    GUILD_ID = os.getenv('DISCORDGUILD')
 else:
     print("No file .env found")
 
@@ -259,9 +258,9 @@ async def hello(ctx: nextcord.Interaction):
     await ctx.send("Hello!")
 
 
-@ bot.command(description="Shows bot's latency", guild_ids=[GUILD_ID])
-async def latency(ctx: nextcord.Integration):
-    await ctx.send(f"The bot latency is {round(bot.latency * 1000)}ms.")
+# @ bot.command(description="Shows bot's latency", guild_ids=[GUILD_ID])
+# async def latency(ctx: nextcord.Integration):
+#     await ctx.send(f"The bot latency is {round(bot.latency * 1000)}ms.")
 
 
 @ bot.command()

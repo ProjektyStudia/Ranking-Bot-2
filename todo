@@ -3,3 +3,7 @@ ogarnac ilosc punktow zeby na sztywno nie bylo
 podzial na pliki (important)
 funkcja zwiekszajaca total members w rankingu jak dodajemy osobe
 ujednolisic nazewnictwo w bazie, zmienic na np. MessageId
+dodać nowy ranking
+
+zamienić VOTES_NEED... na pobieranie z bazy danych w danej wiadomości
+kurwa coś się zjebało z global messages

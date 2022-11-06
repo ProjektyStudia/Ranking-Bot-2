@@ -7,7 +7,6 @@ import logging
 import sqlite3
 from typing import Optional
 import discord
-from dotenv import load_dotenv
 from prettytable import PrettyTable as pt
 client = Client()
 
@@ -18,11 +17,8 @@ cursor = connection.cursor()
 
 
 # consts
-if load_dotenv():
-    TOKEN = os.getenv('DISCORD_TOKEN')
-    GUILD_ID = os.getenv('DISCORD_GUILD')
-else:
-    print("No file .env found")
+TOKEN = os.getenv('DISCORD_TOKEN')
+GUILD_ID = os.getenv('DISCORD_GUILD')
 
 
 # logger

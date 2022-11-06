@@ -1,3 +1,4 @@
+from prettytable import PrettyTable as pt
 import asyncio
 import os
 import nextcord
@@ -11,6 +12,7 @@ from dotenv import load_dotenv
 
 client = Client()
 
+# sqlite
 # sqlite
 connection = sqlite3.connect("cham.db")
 cursor = connection.cursor()
@@ -285,6 +287,10 @@ async def addPerson(ctx, *args):
         rankingName = args[1]
     else:
         await ctx.send("Too many arguments.  Miau! (●'◡'●) \n Remember: ranking name has no whitespaces!")
+
+    # check if custom name or authorName is a mention
+    if (not (userToDb.startsWith("<@") and userToDb.endsWith(">"))):
+
         return
 
     # check if custom name or authorName is a mention
@@ -382,6 +388,27 @@ async def vote(ctx, person: str, description: str, points: int):
     await message.add_reaction("👍")
     await message.add_reaction("👎")
 
+
+@bot.command()
+async def showRanking(ctx, rankingName: str):
+    cursor.execute(
+        f"""SELECT RankingName from Rankings WHERE RankingName='{rankingName}'""")
+    data = cursor.fetchall()
+    if (len(data) != 1):
+        await ctx.send("Not found ranking with that name. Check typo error and try againe! Meow!")
+        return
+
+    cursor.execute(
+        f"""SELECT p.User, p.Points from Points p INNER JOIN Rankings r ON r.RankingID = p.RankingID WHERE r.RankingName='{rankingName}'""")
+    data = cursor.fetchall()
+    tb = pt()
+    tb.title = rankingName
+    tb.field_names = ["User Name", "Points"]
+    for row in data:
+        tb.add_row(row)
+    tb.sortby = "Points"
+    tb.reversesort = True
+    await ctx.send(f"```\n{tb}```")
 
 bot.run(TOKEN)
 

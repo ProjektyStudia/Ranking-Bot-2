@@ -405,6 +405,8 @@ async def showRanking(ctx, rankingName: str):
     tb.reversesort = True
     await ctx.send(f"```\n{tb}```")
 
+
+print(TOKEN)
 bot.run(TOKEN)
 
 connection.close()

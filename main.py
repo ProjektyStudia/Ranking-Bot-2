@@ -122,7 +122,7 @@ async def on_ready():
 @bot.event
 async def on_message(message):
     if (len(message.embeds) > 0):
-
+        print(message.embeds[0].title)
         if (message.embeds[0].title.startswith('Voting Battle') and message.author.id == 1030019957964161067):
             await insert_message_to_db(message.id, NUMBER_OF_VOTES_NEEDED)
             await fetch_messages_from_db()
@@ -290,13 +290,9 @@ async def addPerson(ctx, *args):
         await ctx.send("Too many arguments.  Miau! (●'◡'●) \n Remember: ranking name has no whitespaces!")
 
     # check if custom name or authorName is a mention
-    if (not (userToDb.startsWith("<@") and userToDb.endsWith(">"))):
-
-        return
-
-    # check if custom name or authorName is a mention
     if (not (userToDb.startswith("<@") and userToDb.endswith(">"))):
         return
+
     # no RankingName in message
     if rankingName == "":
         cursor.execute(

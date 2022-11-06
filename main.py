@@ -1,3 +1,4 @@
+from prettytable import PrettyTable as pt
 import asyncio
 import os
 import nextcord
@@ -7,7 +8,8 @@ import logging
 import sqlite3
 from typing import Optional
 import discord
-from prettytable import PrettyTable as pt
+from dotenv import load_dotenv
+
 client = Client()
 
 # sqlite
@@ -17,8 +19,11 @@ cursor = connection.cursor()
 
 
 # consts
-TOKEN = os.getenv('DISCORD_TOKEN')
-GUILD_ID = os.getenv('DISCORD_GUILD')
+if load_dotenv():
+    TOKEN = os.getenv('TOKEN')
+    GUILD_ID = os.getenv('DISCORD_GUILD')
+else:
+    print("No file .env found")
 
 
 # logger
@@ -405,8 +410,6 @@ async def showRanking(ctx, rankingName: str):
     tb.reversesort = True
     await ctx.send(f"```\n{tb}```")
 
-
-print(TOKEN)
 bot.run(TOKEN)
 
 connection.close()

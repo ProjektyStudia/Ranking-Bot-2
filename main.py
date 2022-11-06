@@ -21,7 +21,7 @@ cursor = connection.cursor()
 # consts
 if load_dotenv():
     TOKEN = os.getenv('TOKEN')
-    GUILD_ID = os.getenv('DISCORD_GUILD')
+    GUILD_ID = os.getenv('DISCORDGUILD')
 else:
     print("No file .env found")
 

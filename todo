@@ -1,0 +1,5 @@
+sprawdzac ranking id przy dodawaniu punktow i glosowaniu
+ogarnac ilosc punktow zeby na sztywno nie bylo
+podzial na pliki (important)
+funkcja zwiekszajaca total members w rankingu jak dodajemy osobe
+ujednolisic nazewnictwo w bazie, zmienic na np. MessageId

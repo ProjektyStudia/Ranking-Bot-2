@@ -10,12 +10,13 @@ import discord
 from dotenv import load_dotenv
 
 client = Client()
+
 # sqlite
 connection = sqlite3.connect("cham.db")
 cursor = connection.cursor()
 
 
-#consts
+# consts
 if load_dotenv():
     TOKEN = os.getenv('DISCORD_TOKEN')
     GUILD_ID = os.getenv('DISCORD_GUILD')
@@ -45,71 +46,197 @@ bot = commands.Bot(command_prefix="$",
                    description="Opis bota, moze dziala", intents=intents)
 
 # stale do testowanie - potem dodac do bazy danych
-
+NUMBER_OF_VOTES_NEEDED = 2
 messages = []
 
-def fetch_messages_from_db():
-    print("Started fetching data from db")
-    cursor.execute(f"""SELECT Message_id, Agreed, Rejected, NeedTotalVotes FROM Messages""")
-    data = cursor.fetchall()
-    for record in data:
-        messages.append(record[:-1])
-    print("Finished fetching")
-    
-def insert_message_to_db(message_id, needVotes):
-    cursor.execute(f"""INSERT INTO Messages (Message_id, Agreed, Rejected, NeedTotalVotes) VALUES('{message_id}', 0, 0, {needVotes});""")
-    connection.commit()
+print("start")
 
-def update_message_votes(message_id, vote_type, action):
+# helper functions
+
+
+def find_user_by_string_name(name: str):
+    for user in bot.get_all_members():
+        if user.name == name:
+            return user
+    return None
+
+
+async def fetch_messages_from_db():
+    print("Started fetching data from db")
+    cursor.execute(
+        f"""SELECT Message_id, Agreed, Rejected, NeedTotalVotes FROM Messages""")
+    data = cursor.fetchall()
+    messages.clear()  # clear list
+    for record in data:
+        messages.append(record)
+
+    print("Finished fetching")
+
+
+async def insert_message_to_db(message_id, needVotes):
+    cursor.execute(
+        f"""INSERT INTO Messages (Message_id, Agreed, Rejected, NeedTotalVotes) VALUES('{message_id}', 0, 0, {needVotes});""")
+    connection.commit()
+    await fetch_messages_from_db()
+
+
+async def update_message_votes(message_id, vote_type, action, vote_count):
     if action == "Add":
-        cursor.execute(f"""UPDATE Messages SET {vote_type} = {vote_type} + 1""")
+        cursor.execute(
+            f"""UPDATE Messages SET {vote_type} = {vote_count} where Message_id = '{message_id}';""")
     elif action == "Remove":
-        cursor.execute(f"""UPDATE Messages SET {vote_type} = {vote_type} - 1""")
+        cursor.execute(
+            f"""UPDATE Messages SET {vote_type} = {vote_count} where Message_id = '{message_id}';""")
     else:
         return
     connection.commit()
-    
+    await fetch_messages_from_db()
+    return vote_count
+
+
+async def delete_message_from_db(message_id):
+    cursor.execute(
+        f"""DELETE FROM Messages where Message_id = '{message_id}';""")
+    connection.commit()
+    await fetch_messages_from_db()
+
+
+async def change_user_points(user_id, points):
+    cursor.execute(
+        f"""UPDATE Points SET Points = Points + {points} where User = '{user_id}';""")
+    connection.commit()
+    await fetch_messages_from_db()
+
 # bot events
+
+
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
-    fetch_messages_from_db()
+    await fetch_messages_from_db()
 
 
 @bot.event
 async def on_message(message):
     if (len(message.embeds) > 0):
-        
+
         if (message.embeds[0].title.startswith('Voting Battle') and message.author.id == 1030019957964161067):
-            messages.append(message.id)
+            await insert_message_to_db(message.id, NUMBER_OF_VOTES_NEEDED)
+            await fetch_messages_from_db()
 
     await bot.process_commands(message)
 
 
 @bot.event
 async def on_raw_reaction_add(payload):
-    if (payload.message_id in messages):
-        if (payload.emoji.name == '👍'):
-            channel = bot.get_channel(payload.channel_id)
-            message = await channel.fetch_message(payload.message_id)
-            embed = message.embeds[0]
-            embed.set_field_at(
-                1, name=embed.fields[1].name, value=int(embed.fields[1].value) - 1)
-            embed.set_footer(text="Approved")
-            await message.edit(embed=embed)
-            await message.clear_reactions()
+    for m in messages:
+        if (int(payload.message_id) == int(m[0]) and not payload.member.bot):
+            if (payload.emoji.name == '👍'):
+                channel = bot.get_channel(payload.channel_id)
+                message = await channel.fetch_message(payload.message_id)
 
-        if (payload.emoji.name == '👎'):
-            channel = bot.get_channel(payload.channel_id)
-            message = await channel.fetch_message(payload.message_id)
-            embed = message.embeds[0]
-            embed.set_field_at(
-                2, name=embed.fields[2].name, value=int(embed.fields[2].value) - 1)
-            embed.set_footer(text="Rejected")
-            await message.edit(embed=embed)
-            await message.clear_reactions()
+                # get points and user mention
+                number_of_points_to_add = message.embeds[0].fields[0].name.split(' ')[
+                    4]
+                person_that_gets_points = find_user_by_string_name(message.embeds[0].fields[0].name.split(' ')[
+                    7]).mention
 
-            # mozna zostawic zeby czyscilo reakcje, ale trzeba bedzie zrobic zeby user nie mogl dodawac reakci ponownie
+                # calculate number of reactions on message
+                number_of_reactions = 0
+                for reaction in message.reactions:
+                    if reaction.emoji == '👍':
+                        number_of_reactions = reaction.count - 1
+
+                embed = message.embeds[0]
+                votes_after_update = await update_message_votes(payload.message_id,
+                                                                "Agreed", "Add", number_of_reactions)
+
+                if (votes_after_update == (NUMBER_OF_VOTES_NEEDED)):
+                    embed.set_footer(
+                        text="Voting ended, result: Agreed")
+                    embed.color = discord.Color.green()
+
+                    print("Voting ended, points added")
+                    await delete_message_from_db(payload.message_id)
+                    await change_user_points(person_that_gets_points, number_of_points_to_add)
+
+                embed.set_field_at(
+                    1, name=embed.fields[1].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
+
+                await message.edit(embed=embed)
+
+            if (payload.emoji.name == '👎'):
+                channel = bot.get_channel(payload.channel_id)
+                message = await channel.fetch_message(payload.message_id)
+
+                # get points and user mention
+                number_of_points_to_add = message.embeds[0].fields[0].name.split(' ')[
+                    4]
+                person_that_gets_points = find_user_by_string_name(message.embeds[0].fields[0].name.split(' ')[
+                    7]).mention
+
+                number_of_reactions = 0
+                for reaction in message.reactions:
+                    if reaction.emoji == '👎':
+                        number_of_reactions = reaction.count - 1
+
+                embed = message.embeds[0]
+                votes_after_update = await update_message_votes(payload.message_id,
+                                                                "Rejected", "Remove", number_of_reactions)
+
+                if (votes_after_update == (NUMBER_OF_VOTES_NEEDED)):
+                    embed.set_footer(
+                        text="Voting ended, result: Rejected")
+                    embed.color = discord.Color.red()
+                    print("Voting ended, result: Rejected")
+                    await delete_message_from_db(payload.message_id)
+
+                embed.set_field_at(
+                    2, name=embed.fields[2].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
+
+                await message.edit(embed=embed)
+
+
+@bot.event
+async def on_raw_reaction_remove(payload):
+    for m in messages:
+        if (int(payload.message_id) == int(m[0])):
+            if (payload.emoji.name == '👍'):
+                channel = bot.get_channel(payload.channel_id)
+                message = await channel.fetch_message(payload.message_id)
+
+                number_of_reactions = 0
+                for reaction in message.reactions:
+                    if reaction.emoji == '👍':
+                        number_of_reactions = reaction.count - 1
+
+                embed = message.embeds[0]
+                await update_message_votes(payload.message_id,
+                                           "Agreed", "Add", number_of_reactions)
+
+                embed.set_field_at(
+                    1, name=embed.fields[1].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
+
+                await message.edit(embed=embed)
+
+            if (payload.emoji.name == '👎'):
+                channel = bot.get_channel(payload.channel_id)
+                message = await channel.fetch_message(payload.message_id)
+
+                number_of_reactions = 0
+                for reaction in message.reactions:
+                    if reaction.emoji == '👎':
+                        number_of_reactions = reaction.count - 1
+
+                embed = message.embeds[0]
+                await update_message_votes(payload.message_id,
+                                           "Rejected", "Remove", number_of_reactions)
+
+                embed.set_field_at(
+                    2, name=embed.fields[2].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
+
+                await message.edit(embed=embed)
+
 
 # bot commands
 
@@ -148,20 +275,20 @@ async def addPerson(ctx, *args):
     rankingID = -1
     userToDb = ""
     rankingName = ""
-    match len(args):
-        case 2:
-            userToDb = args[0]
-            rankingName = args[1]
-        case 1:
-            userToDb = args[0]
-        case 0:
-            userToDb = ctx.author.mention
-        case _:
-            await ctx.send("Too many arguments.  Miau! (●'◡'●) \n Remember: ranking name has no whitespaces!")
-            return
+
+    if (len(args) == 0):
+        userToDb = ctx.author.mention
+    elif (len(args) == 1):
+        userToDb = args[0]
+    elif (len(args) == 2):
+        userToDb = args[0]
+        rankingName = args[1]
+    else:
+        await ctx.send("Too many arguments.  Miau! (●'◡'●) \n Remember: ranking name has no whitespaces!")
+        return
 
     # check if custom name or authorName is a mention
-    if (not (userToDb.startsWith("<@") and userToDb.endsWith(">"))):
+    if (not (userToDb.startswith("<@") and userToDb.endswith(">"))):
         return
     # no RankingName in message
     if rankingName == "":
@@ -210,6 +337,8 @@ async def addPerson(ctx, *args):
     if (len(data) == 0):
         cursor.execute(
             f"""INSERT INTO Points VALUES('{userToDb}', {rankingID} , {int("0")})""")
+        cursor.execute(
+            f"""UPDATE Rankings SET NumberOfMembers = NumberOfMembers + 1 where RankingID = {rankingID};""")  # update number of members in ranking
         connection.commit()
         await ctx.send(f"Added {userToDb} to the {rankingName} ranking! You're welcome! Miau ＼(´ ε｀ )／")
     else:
@@ -224,27 +353,34 @@ async def showTable(ctx):
 
 @ bot.command()
 async def vote(ctx, person: str, description: str, points: int):
-    colorBasedOnPoints = 0x0
-    if(points == 0):
+
+    nickname = ""
+    for x in ctx.guild.members:
+        if (x.mention == person):
+            nickname = x.name
+            break
+
+    if (points == 0):
         await ctx.send(f"Voting for 0 points, are u silly? Meow (ﾉ≧ڡ≦)")
         return
-    elif(poits > 0):
-        colorBasedOnPoints = 0xc2525d
-    else:
-        colorBasedOnPoints = 0x52c25d
 
     print("Started voting")
     embed = discord.Embed(
-        title="Voting Battle in (Nazwa Tabeli)", color=colorBasedOnPoints)
-    embed.add_field(
-        name=f"{ctx.author} want to vote {person} for {points} points because {description}", value=f"{description}", inline=False)
+        title="Voting Battle in (Nazwa Tabeli)", color=0xffff00)
+    if (points > 0):
+        embed.add_field(
+            name=f"{ctx.author.name} wants to add {points} point(s) to {nickname} because:", value=f"{description}", inline=False)
+    if (points < 0):
+        embed.add_field(
+            name=f"{ctx.author.name} wants to remove {points} point(s) from {nickname} because:", value=f"{description}", inline=False)
     embed.add_field(name="Approve voting by reacting 👍, votes left:",
-                    value=2, inline=True)
+                    value=NUMBER_OF_VOTES_NEEDED, inline=True)
     embed.add_field(
-        name="To reject react 👎, votes left:", value=2, inline=True)
+        name="To reject react 👎, votes left:", value=NUMBER_OF_VOTES_NEEDED, inline=True)
     embed.set_footer(text="#Rankuś ＼(´ ε｀ )／")
-
-    await ctx.send(embed=embed)
+    message = await ctx.send(embed=embed)
+    await message.add_reaction("👍")
+    await message.add_reaction("👎")
 
 
 bot.run(TOKEN)

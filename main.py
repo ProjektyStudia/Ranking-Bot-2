@@ -1,4 +1,3 @@
-from prettytable import PrettyTable as pt
 import asyncio
 import os
 import nextcord
@@ -9,7 +8,7 @@ import sqlite3
 from typing import Optional
 import discord
 from dotenv import load_dotenv
-
+from prettytable import PrettyTable as pt
 client = Client()
 
 # sqlite

@@ -19,8 +19,9 @@ cursor = connection.cursor()
 
 
 # consts
+print(os.environ)
 if load_dotenv():
-    print(os.environ)
+
     TOKEN = os.getenv('TOKEN')
 else:
     print("No file .env found")

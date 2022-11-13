@@ -39,7 +39,8 @@ intents.messages = True
 intents.reactions = True
 
 # bot
-bot = commands.Bot(command_prefix="$", description="Opis bota, moze dziala", intents=intents)
+bot = commands.Bot(command_prefix="$",
+                   description="Opis bota, moze dziala", intents=intents)
 
 # stale do testowanie - potem dodac do bazy danych
 NUMBER_OF_VOTES_NEEDED = 1
@@ -48,14 +49,18 @@ messages = []
 print("Run bot")
 
 # bot events
+
+
 @bot.event
 async def on_ready():
+    global messages
     print(f'We have logged in as {bot.user}')
     messages = await Database.fetch_messages_from_db()
 
 
 @bot.event
 async def on_message(message):
+    global messages
     if (len(message.embeds) > 0):
         print(message.embeds[0].title)
         if (message.embeds[0].title.startswith('Voting Battle') and message.author.id == 1030019957964161067):
@@ -66,6 +71,7 @@ async def on_message(message):
 
 @bot.event
 async def on_raw_reaction_add(payload):
+    global messages
     print(messages)
     for m in messages:
         if (int(payload.message_id) == int(m[0]) and not payload.member.bot):
@@ -88,7 +94,7 @@ async def on_raw_reaction_add(payload):
 
                 embed = message.embeds[0]
                 votes_after_update = await Database.update_message_votes(payload.message_id,
-                                                                "Agreed", "Add", number_of_reactions)
+                                                                         "Agreed", "Add", number_of_reactions)
 
                 if (votes_after_update == (NUMBER_OF_VOTES_NEEDED)):
                     embed.set_footer(
@@ -120,7 +126,7 @@ async def on_raw_reaction_add(payload):
 
                 embed = message.embeds[0]
                 votes_after_update = await Database.update_message_votes(payload.message_id,
-                                                                "Rejected", "Remove", number_of_reactions)
+                                                                         "Rejected", "Remove", number_of_reactions)
 
                 if (votes_after_update == (NUMBER_OF_VOTES_NEEDED)):
                     embed.set_footer(
@@ -137,6 +143,7 @@ async def on_raw_reaction_add(payload):
 
 @bot.event
 async def on_raw_reaction_remove(payload):
+    global messages
     for m in messages:
         if (int(payload.message_id) == int(m[0])):
             if (payload.emoji.name == '👍'):
@@ -150,7 +157,7 @@ async def on_raw_reaction_remove(payload):
 
                 embed = message.embeds[0]
                 await Database.update_message_votes(payload.message_id,
-                                           "Agreed", "Add", number_of_reactions)
+                                                    "Agreed", "Add", number_of_reactions)
 
                 embed.set_field_at(
                     1, name=embed.fields[1].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
@@ -168,7 +175,7 @@ async def on_raw_reaction_remove(payload):
 
                 embed = message.embeds[0]
                 await Database.update_message_votes(payload.message_id,
-                                           "Rejected", "Remove", number_of_reactions)
+                                                    "Rejected", "Remove", number_of_reactions)
 
                 embed.set_field_at(
                     2, name=embed.fields[2].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
@@ -226,11 +233,12 @@ async def addPerson(ctx, *args):
 
     # check if custom name or authorName is a mention
     if (not (userToDb.startswith("<@") and userToDb.endswith(">"))):
+        await ctx.send("Invalid user, pleeesa use user mentions only!  Miau! (●'◡'●)")
         return
 
     # no RankingName in message
     if rankingName == "":
-        data = await Database.fetch_rankings_in_guild(ctx.guild.id)
+        data = Database.fetch_rankings_in_guild(ctx.guild.id)
 
         # found one default ranking
         if (len(data) == 1):
@@ -241,9 +249,10 @@ async def addPerson(ctx, *args):
         elif (len(data) == 0):
             # create new ranking
             rankingName = ctx.guild.name
-            await Database.create_new_ranking(rankingName.replace(" ", "_"), ctx.guild.id)
+            Database.create_new_ranking(
+                rankingName.replace(" ", "_"), ctx.guild.id)
 
-            data = await Database.fetch_rankingIds(ctx.guild.id)
+            data = Database.fetch_rankingIds(ctx.guild.id)
             rankingID = data[0][0]
             await ctx.send(f"Created your first ranking with name of server: {ctx.guild.name}.  Miau! (●'◡'●)")
 
@@ -254,37 +263,128 @@ async def addPerson(ctx, *args):
 
     # RankingName in message
     else:
-        data = await Database.fetch_rankingIds(ctx.guild.id, rankingName)
+        data = Database.fetch_rankingIds(ctx.guild.id, rankingName)
         if (len(data) != 1):
             await ctx.send("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
             return
         else:
             rankingID = data[0][0]
 
-
-    data = await Database.fetch_user_from_points(userToDb, rankingId)
+    data = Database.fetch_user_from_points(userToDb, rankingID)
     if (len(data) == 0):
-        await Database.insert_user_to_points(userToDb, rankingId)
-        await Database.increase_total_memebers_in_ranking(rankingId)
+        Database.insert_user_to_points(userToDb, rankingID)
+        Database.increase_total_memebers_in_ranking(rankingID)
         await ctx.send(f"Added {userToDb} to the {rankingName} ranking! You're welcome! Miau ＼(´ ε｀ )／")
     else:
         await ctx.send(f"User {userToDb} is already in the DB ( ͡°Ɛ ͡°)")
 
 
 @ bot.command()
-async def showTable(ctx):
-    for row in cursor.execute("SELECT osoba, punkty from lista_chamow"):
-        await ctx.send(row)
+async def removePerson(ctx, *args):
+    # args are optional, [0] - mention user, [1] - ranking name
+    # async def addPerson(ctx, person: Optional[nextcord.Member], rankingName: Optional[str]):
+    rankingID = -1
+    userToDb = ""
+    rankingName = ""
+
+    if (len(args) == 0):
+        userToDb = ctx.author.mention
+    elif (len(args) == 1):
+        userToDb = args[0]
+    elif (len(args) == 2):
+        userToDb = args[0]
+        rankingName = args[1]
+    else:
+        await ctx.send("Too many arguments.  Miau! (●'◡'●) \n Remember: ranking name has no whitespaces!")
+
+    # check if custom name or authorName is a mention
+    if (not (userToDb.startswith("<@") and userToDb.endswith(">"))):
+        await ctx.send("Invalid user, pleeesa use user mentions only!  Miau! (●'◡'●)")
+        return
+
+    # no RankingName in message
+    if rankingName == "":
+        data = Database.fetch_rankings_in_guild(ctx.guild.id)
+
+        # found one default ranking
+        if (len(data) == 1):
+            rankingName = data[0][0]
+            rankingID = data[0][1]
+
+        # too many ranking names, cannot pick cause no rankingName in message
+        else:
+            await ctx.send("In your server are several rankings, choose one and call me again! Miau! (●'◡'●)")
+            return
+
+    # RankingName in message
+    else:
+        data = Database.fetch_rankingIds(ctx.guild.id, rankingName)
+        if (len(data) != 1):
+            await ctx.send("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
+            return
+        else:
+            rankingID = data[0][0]
+
+    user = Database.fetch_user_from_points(userToDb, rankingID)
+    if (len(user) == 0):
+        await ctx.send(f"User {userToDb} is not in the {rankingName} ranking ( ͡°Ɛ ͡°)")
+        return
+    else:
+        Database.decrease_total_memebers_in_ranking(rankingID)
+        Database.remove_user_from_points(userToDb, rankingID)
+        await ctx.send(f"Removed {userToDb} from the {rankingName} ranking :( We will miss You! Miau ＼(´ ε｀ )／")
+        return
+
+
+@bot.command()
+async def createRanking(ctx, rankingName: str):
+    if (rankingName == ""):
+        await ctx.send("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
+        return
+    Database.create_new_ranking(
+        rankingName.replace(" ", "_"), ctx.guild.id)
 
 
 @ bot.command()
-async def vote(ctx, person: str, description: str, points: int):
+async def vote(ctx, person: str, description: str, points: int, *args):
+    # args are optional, [0] - ranking name
+    if (len(args) > 1):
+        await ctx.send("Too many arguments.  Miau! (●'◡'●)")
+        return
+
+    if (len(args) == 0):
+        print("No ranking name")
+        data = Database.fetch_rankings_in_guild(ctx.guild.id)
+
+        if (len(data) == 1):
+            rankingId = data[0][1]
+        else:
+            await ctx.send("In your server are several rankings, choose one and call me again! Miau! (●'◡'●)")
+            return
+
+    if (len(args) == 1):
+        rankingName = args[0]
+        ranking = Database.fetch_rankingIds(ctx.guild.id, rankingName)
+        if (len(ranking) != 1):
+            await ctx.send("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
+            return
+
+        rankingId = ranking[0][0]
 
     nickname = ""
     for x in ctx.guild.members:
         if (x.mention == person):
             nickname = x.name
             break
+
+    if (nickname == ""):
+        await ctx.send("Invalid user, pleeesa use user mentions only!  Miau! (●'◡'●)")
+        return
+    users = Database.fetch_users_from_ranking(rankingId)
+    user = Helper.find_user_by_string_name(nickname, bot)
+    if (user.mention not in users[0]):
+        await ctx.send("User is not in the ranking. Miau! (●'◡'●)")
+        return
 
     if (points == 0):
         await ctx.send(f"Voting for 0 points, are u silly? Meow (◕‿◕✿)")
@@ -310,21 +410,32 @@ async def vote(ctx, person: str, description: str, points: int):
 
 
 @bot.command()
-async def showRanking(ctx, rankingName: str):
-    data = await Database.fetch_ranking_name(rankingName)
+async def showRanking(ctx, *args):
+    if (len(args) == 0):
 
-    #check if found any ranking with input name
-    if (len(data) != 1):
-        await ctx.send("Not found ranking with that name. Check typo error and try againe! Meow!")
-        return
+        rankings = Database.fetch_rankings_in_guild(ctx.guild.id)
 
-    #fetch data from ranking
-    data = await Database.fetch_user_with_points(rankingName, ctx.guild.id)
+        # found one default ranking
+        if (len(rankings) == 1):
+            rankingName = rankings[0][0]
+        else:
+            await ctx.send("Too few arguments.  Miau! (●'◡'●) \n Remember: ranking name has no whitespaces!")
+            return
+    else:
+        rankingName = args[0]
+
+    # fetch data from ranking
+    data = Database.fetch_user_with_points(rankingName, ctx.guild.id)
     tb = pt()
     tb.title = rankingName
     tb.field_names = ["User Name", "Points"]
     for row in data:
-        tb.add_row(row)
+        print(row)
+        mention = row[0]
+        user = Helper.find_user_by_mention(mention, bot)
+        if (user != None):
+            _row = [user.name, row[1]]
+            tb.add_row(_row)
     tb.sortby = "Points"
     tb.reversesort = True
     await ctx.send(f"```\n{tb}```")

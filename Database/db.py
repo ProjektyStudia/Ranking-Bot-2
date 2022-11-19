@@ -70,9 +70,14 @@ class Database:
 
     @classmethod
     def create_new_ranking(self, name, guildId):
-        self.cursor.execute(
-            f"""INSERT INTO Rankings (RankingName, GuildID) VALUES ('{name}','{guildId}')""")
-        self.connection.commit()
+        data = self.fetch_rankingIds(guildId, name)
+        if len(data) == 0:
+            self.cursor.execute(
+                f"""INSERT INTO Rankings (RankingName, GuildID) VALUES ('{name}','{guildId}')""")
+            self.connection.commit()
+            return True
+        else:
+            return False
 
     @classmethod
     def fetch_rankingIds(self, guildId):

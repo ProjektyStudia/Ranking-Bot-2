@@ -98,6 +98,13 @@ class Database:
         return self.cursor.fetchall()
 
     @classmethod
+    def fetch_total_members(self, rankingName, guildId):
+        self.cursor.execute(
+            f"""SELECT NumberOfMembers from Rankings WHERE RankingName='{rankingName}' AND GuildID='{guildId}'""")
+        response = self.cursor.fetchall()
+        return response[0][0]
+
+    @classmethod
     def insert_user_to_points(self, userToDb, rankingId):
         self.cursor.execute(
             f"""INSERT INTO Points VALUES('{userToDb}', {rankingId} , {int("0")})""")

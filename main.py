@@ -42,7 +42,6 @@ bot = commands.Bot(command_prefix="$",
                    description="Opis bota, moze dziala", intents=intents)
 
 # stale do testowanie - potem dodac do bazy danych
-NUMBER_OF_VOTES_NEEDED = 1
 messages = []
 
 print("Run bot")
@@ -62,7 +61,12 @@ async def on_message(message):
     global messages
     if (len(message.embeds) > 0):
         if (message.embeds[0].title.startswith('Voting Battle') and message.author.id == 1030019957964161067):
-            messages = await Database.insert_message_to_db(message.id, NUMBER_OF_VOTES_NEEDED)
+            ranking_name = message.embeds[0].title.split(" ")[3]
+
+            number_of_votes_needed = Helper.get_number_of_votes(
+                rankingName=ranking_name, guildId=message.guild.id)
+
+            messages = await Database.insert_message_to_db(message.id, number_of_votes_needed)
 
     await bot.process_commands(message)
 
@@ -92,7 +96,11 @@ async def on_raw_reaction_add(payload):
                 votes_after_update = await Database.update_message_votes(payload.message_id,
                                                                          "Agreed", "Add", number_of_reactions)
 
-                if (votes_after_update == (NUMBER_OF_VOTES_NEEDED)):
+                ranking_name = message.embeds[0].title.split(" ")[3]
+                number_of_votes_needed = Helper.get_number_of_votes(
+                    rankingName=ranking_name, guildId=message.guild.id)
+
+                if (votes_after_update == (number_of_votes_needed)):
                     embed.set_footer(
                         text="Voting ended, result: Agreed")
                     embed.color = discord.Color.green()
@@ -101,7 +109,7 @@ async def on_raw_reaction_add(payload):
                     messages = await Database.change_user_points(person_that_gets_points, number_of_points_to_add)
 
                 embed.set_field_at(
-                    1, name=embed.fields[1].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
+                    1, name=embed.fields[1].name, value=int(number_of_votes_needed - number_of_reactions))
 
                 await message.edit(embed=embed)
 
@@ -124,7 +132,11 @@ async def on_raw_reaction_add(payload):
                 votes_after_update = await Database.update_message_votes(payload.message_id,
                                                                          "Rejected", "Remove", number_of_reactions)
 
-                if (votes_after_update == (NUMBER_OF_VOTES_NEEDED)):
+                ranking_name = message.embeds[0].title.split(" ")[3]
+                number_of_votes_needed = Helper.get_number_of_votes(
+                    rankingName=ranking_name, guildId=message.guild.id)
+
+                if (votes_after_update == (number_of_votes_needed)):
                     embed.set_footer(
                         text="Voting ended, result: Rejected")
                     embed.color = discord.Color.red()
@@ -132,7 +144,7 @@ async def on_raw_reaction_add(payload):
                     messages = await Database.delete_message_from_db(payload.message_id)
 
                 embed.set_field_at(
-                    2, name=embed.fields[2].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
+                    2, name=embed.fields[2].name, value=int(number_of_votes_needed - number_of_reactions))
 
                 await message.edit(embed=embed)
 
@@ -155,8 +167,12 @@ async def on_raw_reaction_remove(payload):
                 await Database.update_message_votes(payload.message_id,
                                                     "Agreed", "Add", number_of_reactions)
 
+                ranking_name = message.embeds[0].title.split(" ")[3]
+                number_of_votes_needed = Helper.get_number_of_votes(
+                    rankingName=ranking_name, guildId=message.guild.id)
+
                 embed.set_field_at(
-                    1, name=embed.fields[1].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
+                    1, name=embed.fields[1].name, value=int(number_of_votes_needed - number_of_reactions))
 
                 await message.edit(embed=embed)
 
@@ -173,8 +189,12 @@ async def on_raw_reaction_remove(payload):
                 await Database.update_message_votes(payload.message_id,
                                                     "Rejected", "Remove", number_of_reactions)
 
+                ranking_name = message.embeds[0].title.split(" ")[3]
+                number_of_votes_needed = Helper.get_number_of_votes(
+                    rankingName=ranking_name, guildId=message.guild.id)
+
                 embed.set_field_at(
-                    2, name=embed.fields[2].name, value=int(NUMBER_OF_VOTES_NEEDED - number_of_reactions))
+                    2, name=embed.fields[2].name, value=int(number_of_votes_needed - number_of_reactions))
 
                 await message.edit(embed=embed)
 
@@ -195,10 +215,12 @@ async def joined(ctx, member: nextcord.Member):
 # async def latency(ctx: nextcord.Integration):
 #     await ctx.send(f"The bot latency is {round(bot.latency * 1000)}ms.")
 
+
 @ bot.command()
 async def members(ctx):
     names = [x.name for x in ctx.guild.members]
     await ctx.send(names)
+
 
 async def addPerson(ctx, *args):
     # args are optional, [0] - mention user, [1] - ranking name
@@ -264,8 +286,9 @@ async def addPerson(ctx, *args):
     else:
         await ctx.send(f"User {userToDb} is already in the DB ( ͡°Ɛ ͡°)")
 
+
 @bot.slash_command(guild_ids=[1030024780314845234])
-async def add_to_ranking(interaction: Interaction, user:Optional[str], ranking_name: Optional[str]):
+async def add_to_ranking(interaction: Interaction, user: Optional[str], ranking_name: Optional[str]):
     """Adding member to ranking.
 
     Parameters
@@ -327,8 +350,9 @@ async def add_to_ranking(interaction: Interaction, user:Optional[str], ranking_n
     else:
         await interaction.response.send_message(f"User {user} is already in the DB ( ͡°Ɛ ͡°)")
 
+
 @bot.slash_command(guild_ids=[1030024780314845234])
-async def remove_from_ranking(interaction: Interaction, user:Optional[str], ranking_name: Optional[str]):
+async def remove_from_ranking(interaction: Interaction, user: Optional[str], ranking_name: Optional[str]):
     """Removing member from ranking.
 
     Parameters
@@ -375,22 +399,23 @@ async def remove_from_ranking(interaction: Interaction, user:Optional[str], rank
 
     # RankingName in message
     else:
-        data = Database.fetch_rankingIds(ctx.guild.id, ranking_name)
+        data = Database.fetch_rankingIds(interaction.guild.id, ranking_name)
         if (len(data) != 1):
-            await ctx.send("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
+            await interaction.response.send_message("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
             return
         else:
             rankingID = data[0][0]
 
     user = Database.fetch_user_from_points(user, rankingID)
     if (len(user) == 0):
-        await ctx.send(f"User {user} is not in the {ranking_name} ranking ( ͡°Ɛ ͡°)")
+        await interaction.response.send_message(f"User {user} is not in the {ranking_name} ranking ( ͡°Ɛ ͡°)")
         return
     else:
         Database.decrease_total_memebers_in_ranking(rankingID)
         Database.remove_user_from_points(user, rankingID)
-        await ctx.send(f"Removed {user} from the {ranking_name} ranking :( We will miss You! Miau ＼(´ ε｀ )／")
+        await interaction.response.send_message(f"Removed {user} from the {ranking_name} ranking :( We will miss You! Miau ＼(´ ε｀ )／")
         return
+
 
 @bot.slash_command(guild_ids=[1030024780314845234])
 async def create_new_ranking(interaction: Interaction, ranking_name: str):
@@ -401,12 +426,13 @@ async def create_new_ranking(interaction: Interaction, ranking_name: str):
     interaction: Interaction
         The interaction object
     ranking_name: str
-        Type ranking name!
+        Type unique ranking name!
     """
     if Database.create_new_ranking(ranking_name.replace(" ", "_"), interaction.guild.id):
         await interaction.response.send_message("You've added a new ranking! Congratulation! Miau! (●'◡'●)")
     else:
         await interaction.response.send_message("Oh! There was a problem. Maybe you made a typo in name?  Miau! (︶︹︺)")
+
 
 @bot.slash_command(guild_ids=[1030024780314845234])
 async def vote(interaction: Interaction, person: str, description: str, points: Optional[int], ranking_name: Optional[str]):
@@ -463,6 +489,9 @@ async def vote(interaction: Interaction, person: str, description: str, points: 
         await interaction.response.send_message(f"Voting for 0 points, are u silly? Meow (◕‿◕✿)")
         return
 
+    number_of_votes_needed = Helper.get_number_of_votes(
+        rankingName=ranking_name, guildId=interaction.guild.id)
+
     print("Started voting")
     embed = discord.Embed(
         title=f"Voting Battle in {ranking_name}", color=0xffff00)
@@ -473,9 +502,9 @@ async def vote(interaction: Interaction, person: str, description: str, points: 
         embed.add_field(
             name=f"{interaction.user.name} wants to remove {points} point(s) from {nickname} because:", value=f"{description}", inline=False)
     embed.add_field(name="Approve voting by reacting 👍, votes left:",
-                    value=NUMBER_OF_VOTES_NEEDED, inline=True)
+                    value=number_of_votes_needed, inline=True)
     embed.add_field(
-        name="To reject react 👎, votes left:", value=NUMBER_OF_VOTES_NEEDED, inline=True)
+        name="To reject react 👎, votes left:", value=number_of_votes_needed, inline=True)
     embed.set_footer(text="#Rankuś ＼(´ ε｀ )／")
     await interaction.response.send_message(embed=embed)
 
@@ -492,6 +521,7 @@ async def vote(interaction: Interaction, person: str, description: str, points: 
 
     await vote.add_reaction("👍")
     await vote.add_reaction("👎")
+
 
 @bot.slash_command(guild_ids=[1030024780314845234])
 async def show_ranking(interaction: Interaction, ranking_name: Optional[str]):

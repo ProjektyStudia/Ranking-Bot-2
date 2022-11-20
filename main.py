@@ -418,7 +418,7 @@ async def remove_from_ranking(interaction: Interaction, user: Optional[str], ran
             rankingID = data[0][0]
 
     user = Database.fetch_user_from_points(user, rankingID)
-    print(user, 'user')
+
     if (len(user) == 0):
         await interaction.response.send_message(f"User {user} is not in the {ranking_name} ranking ( ͡°Ɛ ͡°)")
         return

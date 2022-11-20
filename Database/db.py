@@ -86,7 +86,7 @@ class Database:
         return self.cursor.fetchall()
 
     @classmethod
-    def fetch_rankingIds(self, guildId, rankingName):
+    def fetch_rankingId(self, guildId, rankingName):
         self.cursor.execute(
             f"""SELECT RankingID from Rankings WHERE GuildID='{guildId}' AND RankingName='{rankingName}'""")
         return self.cursor.fetchall()

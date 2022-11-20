@@ -147,7 +147,7 @@ async def on_raw_reaction_add(payload):
                 number_of_votes_needed = Helper.get_number_of_votes(
                     rankingName=ranking_name, guildId=message.guild.id)
 
-                if (votes_after_update == (number_of_votes_needed)):
+                if (votes_after_update >= (number_of_votes_needed)):
                     embed.set_footer(
                         text="Voting ended, result: Rejected")
                     embed.color = discord.Color.red()
@@ -282,7 +282,7 @@ async def addPerson(ctx, *args):
 
     # RankingName in message
     else:
-        data = Database.fetch_rankingIds(ctx.guild.id, rankingName)
+        data = Database.fetch_rankingId(ctx.guild.id, rankingName)
         if (len(data) != 1):
             await ctx.send("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
             return
@@ -346,7 +346,7 @@ async def add_to_ranking(interaction: Interaction, user: Optional[str], ranking_
 
     # ranking_name in message
     else:
-        data = Database.fetch_rankingIds(interaction.guild.id, ranking_name)
+        data = Database.fetch_rankingId(interaction.guild.id, ranking_name)
         if (len(data) != 1):
             await interaction.response.send_message("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
             return
@@ -410,7 +410,7 @@ async def remove_from_ranking(interaction: Interaction, user: Optional[str], ran
 
     # RankingName in message
     else:
-        data = Database.fetch_rankingIds(interaction.guild.id, ranking_name)
+        data = Database.fetch_rankingId(interaction.guild.id, ranking_name)
         if (len(data) != 1):
             await interaction.response.send_message("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
             return
@@ -418,6 +418,7 @@ async def remove_from_ranking(interaction: Interaction, user: Optional[str], ran
             rankingID = data[0][0]
 
     user = Database.fetch_user_from_points(user, rankingID)
+    print(user, 'user')
     if (len(user) == 0):
         await interaction.response.send_message(f"User {user} is not in the {ranking_name} ranking ( ͡°Ɛ ͡°)")
         return
@@ -472,7 +473,7 @@ async def vote(interaction: Interaction, person: str, description: str, points: 
             await interaction.response.send_message("In your server are several rankings, choose one and call me again! Miau! (●'◡'●)")
             return
     else:
-        ranking = Database.fetch_rankingIds(interaction.guild.id, ranking_name)
+        ranking = Database.fetch_rankingId(interaction.guild.id, ranking_name)
         if (len(ranking) != 1):
             await interaction.response.send_message("Invalid ranking name. If you can, correct it, pleasee~~~? ◕‿↼")
             return

@@ -94,8 +94,9 @@ class Database:
     @classmethod
     def fetch_user_from_points(self, userToDb, rankingId):
         self.cursor.execute(
-            f"""SELECT User from Points WHERE User='{userToDb}' AND RankingID='{rankingId}'""")
-        return self.cursor.fetchall()
+            f"""SELECT User from Points WHERE User='{userToDb}' AND RankingID={rankingId}""")
+        response = self.cursor.fetchall()
+        return response[0][0]
 
     @classmethod
     def fetch_total_members(self, rankingName, guildId):

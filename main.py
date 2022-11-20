@@ -80,11 +80,13 @@ async def on_raw_reaction_add(payload):
                 channel = bot.get_channel(payload.channel_id)
                 message = await channel.fetch_message(payload.message_id)
 
+                words_in_embed = message.embeds[0].fields[0].name.split(' ')  
+                for x in words_in_embed:
+                    if x == '':
+                        words_in_embed.remove(x)
                 # get points and user mention
-                number_of_points_to_add = message.embeds[0].fields[0].name.split(' ')[
-                    4]
-                person_that_gets_points = Helper.find_user_by_string_name(message.embeds[0].fields[0].name.split(' ')[
-                    7], bot).mention
+                number_of_points_to_add = words_in_embed[4]
+                person_that_gets_points = Helper.find_user_by_string_name(words_in_embed[7], bot).mention
 
                 # calculate number of reactions on message
                 number_of_reactions = 0

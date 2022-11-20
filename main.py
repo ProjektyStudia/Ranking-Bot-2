@@ -287,7 +287,7 @@ async def addPerson(ctx, *args):
         await ctx.send(f"User {userToDb} is already in the DB ( ͡°Ɛ ͡°)")
 
 
-@bot.slash_command(guild_ids=[1030024780314845234])
+@bot.slash_command(guild_ids=[1030024780314845234, 693775903532253254])
 async def add_to_ranking(interaction: Interaction, user: Optional[str], ranking_name: Optional[str]):
     """Adding member to ranking.
 
@@ -351,7 +351,7 @@ async def add_to_ranking(interaction: Interaction, user: Optional[str], ranking_
         await interaction.response.send_message(f"User {user} is already in the DB ( ͡°Ɛ ͡°)")
 
 
-@bot.slash_command(guild_ids=[1030024780314845234])
+@bot.slash_command(guild_ids=[1030024780314845234, 693775903532253254])
 async def remove_from_ranking(interaction: Interaction, user: Optional[str], ranking_name: Optional[str]):
     """Removing member from ranking.
 
@@ -417,7 +417,7 @@ async def remove_from_ranking(interaction: Interaction, user: Optional[str], ran
         return
 
 
-@bot.slash_command(guild_ids=[1030024780314845234])
+@bot.slash_command(guild_ids=[1030024780314845234, 693775903532253254])
 async def create_new_ranking(interaction: Interaction, ranking_name: str):
     """Create a new ranking for your server!
 
@@ -434,7 +434,7 @@ async def create_new_ranking(interaction: Interaction, ranking_name: str):
         await interaction.response.send_message("Oh! There was a problem. Maybe you made a typo in name?  Miau! (︶︹︺)")
 
 
-@bot.slash_command(guild_ids=[1030024780314845234])
+@bot.slash_command(guild_ids=[1030024780314845234, 693775903532253254])
 async def vote(interaction: Interaction, person: str, description: str, points: Optional[int], ranking_name: Optional[str]):
     """Vot for adding/removing points for person. Add description to voting for context. Points and ranking name are optional parameters. Default is +1 point.
 
@@ -523,7 +523,7 @@ async def vote(interaction: Interaction, person: str, description: str, points: 
     await vote.add_reaction("👎")
 
 
-@bot.slash_command(guild_ids=[1030024780314845234])
+@bot.slash_command(guild_ids=[1030024780314845234, 693775903532253254])
 async def show_ranking(interaction: Interaction, ranking_name: Optional[str]):
     """Show actual points table for ranking
 

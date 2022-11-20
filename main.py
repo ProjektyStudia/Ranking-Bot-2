@@ -80,13 +80,22 @@ async def on_raw_reaction_add(payload):
                 channel = bot.get_channel(payload.channel_id)
                 message = await channel.fetch_message(payload.message_id)
 
-                words_in_embed = message.embeds[0].fields[0].name.split(' ')  
-                for x in words_in_embed:
-                    if x == '':
-                        words_in_embed.remove(x)
                 # get points and user mention
-                number_of_points_to_add = words_in_embed[4]
-                person_that_gets_points = Helper.find_user_by_string_name(words_in_embed[7], bot).mention
+
+                if ('add' in message.embeds[0].fields[0].name):
+                    user_name = message.embeds[0].fields[0].name.split('(s) to ')[
+                        1].split(' because')[0]
+                    points = message.embeds[0].fields[0].name.split(
+                        'add ')[1].split(' point(s) to')[0]
+                elif ('remove' in message.embeds[0].fields[0].name):
+                    user_name = message.embeds[0].fields[0].name.split('(s) from ')[
+                        1].split(' because')[0]
+                    points = message.embeds[0].fields[0].name.split(
+                        'remove ')[1].split(' point(s) from')[0]
+
+                number_of_points_to_add = points
+                person_that_gets_points = Helper.find_user_by_string_name(
+                    user_name, bot).mention
 
                 # calculate number of reactions on message
                 number_of_reactions = 0
@@ -542,7 +551,7 @@ async def show_ranking(interaction: Interaction, ranking_name: Optional[str]):
         if (len(rankings) == 1):
             ranking_name = rankings[0][0]
         else:
-            await interaction.response.send_message("No results. Miau! (●'◡'●) \nRemember: ranking name has no whitespaces! \nType ranking name if you didn't")
+            await interaction.response.send_message("No ranking found. Miau! (●'◡'●) \n Add ranking by calling /create_new_ranking command")
             return
 
     # fetch data from ranking

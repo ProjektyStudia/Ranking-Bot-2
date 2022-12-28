@@ -87,11 +87,13 @@ async def on_raw_reaction_add(payload):
                         1].split(' because')[0]
                     points = message.embeds[0].fields[0].name.split(
                         'add ')[1].split(' point(s) to')[0]
+                    action = 'Add'
                 elif ('remove' in message.embeds[0].fields[0].name):
                     user_name = message.embeds[0].fields[0].name.split('(s) from ')[
                         1].split(' because')[0]
                     points = message.embeds[0].fields[0].name.split(
                         'remove ')[1].split(' point(s) from')[0]
+                    action = 'Remove'
 
                 number_of_points_to_add = points
                 person_that_gets_points = Helper.find_user_by_string_name(
@@ -117,7 +119,7 @@ async def on_raw_reaction_add(payload):
                     embed.color = discord.Color.green()
                     print("Voting ended, points added")
                     await Database.delete_message_from_db(payload.message_id)
-                    messages = await Database.change_user_points(person_that_gets_points, number_of_points_to_add)
+                    messages = await Database.change_user_points(person_that_gets_points, number_of_points_to_add, action)
 
                 embed.set_field_at(
                     1, name=embed.fields[1].name, value=int(number_of_votes_needed - number_of_reactions))
@@ -128,11 +130,22 @@ async def on_raw_reaction_add(payload):
                 channel = bot.get_channel(payload.channel_id)
                 message = await channel.fetch_message(payload.message_id)
 
+                if ('add' in message.embeds[0].fields[0].name):
+                    user_name = message.embeds[0].fields[0].name.split('(s) to ')[
+                        1].split(' because')[0]
+                    points = message.embeds[0].fields[0].name.split(
+                        'add ')[1].split(' point(s) to')[0]
+                elif ('remove' in message.embeds[0].fields[0].name):
+                    user_name = message.embeds[0].fields[0].name.split('(s) from ')[
+                        1].split(' because')[0]
+                    points = message.embeds[0].fields[0].name.split(
+                        'remove ')[1].split(' point(s) from')[0]
+
                 # get points and user mention
                 number_of_points_to_add = message.embeds[0].fields[0].name.split(' ')[
                     4]
-                person_that_gets_points = Helper.find_user_by_string_name(message.embeds[0].fields[0].name.split(' ')[
-                    7], bot).mention
+                person_that_gets_points = Helper.find_user_by_string_name(
+                    user_name, bot).mention
 
                 number_of_reactions = 0
                 for reaction in message.reactions:
@@ -354,7 +367,7 @@ async def add_to_ranking(interaction: Interaction, user: Optional[str], ranking_
             rankingID = data[0][0]
 
     data = Database.fetch_user_from_points(user, rankingID)
-    if (len(data) == 0):
+    if (data == 0):  # user not in DB
         Database.insert_user_to_points(user, rankingID)
         Database.increase_total_memebers_in_ranking(rankingID)
         await interaction.response.send_message(f"Added {user} to the {ranking_name} ranking! You're welcome! Miau ＼(´ ε｀ )／")
@@ -512,7 +525,7 @@ async def vote(interaction: Interaction, person: str, description: str, points: 
             name=f"{interaction.user.name} wants to add {points} point(s) to {nickname} because:", value=f"{description}", inline=False)
     if (points < 0):
         embed.add_field(
-            name=f"{interaction.user.name} wants to remove {points} point(s) from {nickname} because:", value=f"{description}", inline=False)
+            name=f"{interaction.user.name} wants to remove {abs(points)} point(s) from {nickname} because:", value=f"{description}", inline=False)
     embed.add_field(name="Approve voting by reacting 👍, votes left:",
                     value=number_of_votes_needed, inline=True)
     embed.add_field(

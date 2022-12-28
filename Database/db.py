@@ -53,9 +53,13 @@ class Database:
         return results
 
     @classmethod
-    async def change_user_points(self, user_id, points):
-        self.cursor.execute(
-            f"""UPDATE Points SET Points = Points + {points} where User = '{user_id}';""")
+    async def change_user_points(self, user_id, points, action):
+        if action == "Add":
+            self.cursor.execute(
+                f"""UPDATE Points SET Points = Points + {points} where User = '{user_id}';""")
+        else:
+            self.cursor.execute(
+                f"""UPDATE Points SET Points = Points - {points} where User = '{user_id}';""")
         self.connection.commit()
         results = await self.fetch_messages_from_db()
         return results
@@ -70,7 +74,7 @@ class Database:
 
     @classmethod
     def create_new_ranking(self, name, guildId):
-        data = self.fetch_rankingIds(guildId, name)
+        data = self.fetch_rankingId(guildId, name)
         if len(data) == 0:
             self.cursor.execute(
                 f"""INSERT INTO Rankings (RankingName, GuildID) VALUES ('{name}','{guildId}')""")
@@ -96,6 +100,8 @@ class Database:
         self.cursor.execute(
             f"""SELECT User from Points WHERE User='{userToDb}' AND RankingID={rankingId}""")
         response = self.cursor.fetchall()
+        if len(response) == 0:
+            return 0
         return response[0][0]
 
     @classmethod
@@ -103,6 +109,8 @@ class Database:
         self.cursor.execute(
             f"""SELECT NumberOfMembers from Rankings WHERE RankingName='{rankingName}' AND GuildID='{guildId}'""")
         response = self.cursor.fetchall()
+        if len(response) == 0:
+            return 0
         return response[0][0]
 
     @classmethod

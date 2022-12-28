@@ -7,3 +7,7 @@ ujednolisic nazewnictwo w bazie, zmienic na np. MessageId
 dodać nowy ranking
 
 zamienić VOTES_NEED... na pobieranie z bazy danych w danej wiadomości
+
+##
+
+show ranking wypisuje no ranking found gdy mamy 2 puste
